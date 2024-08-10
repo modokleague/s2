@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MODOK League S2 Pool Builder </title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #heroesList {
+      margin-bottom: 20px;
+    }
+    #result {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>MODOK League Pool Builder, Season 02</h1>
+  <div id="heroesList"></div>
+  <div><strong>Number of teams:</strong> <span id="numberOfTeams"></span></div>
+  <br>
+  <label for="seedInput"><strong>Enter seed (optional):</strong></label>
+  <input type="text" id="seedInput">
+  <button id="goButton">Go</button>
+  <div id="result"></div>
+
+  <script>
+    // List of possible Marvel heroes
+    const marvelHeroes = [
+      'Angel', 'Ant-Man', 'Bishop', 'Black Panther', 'Black Widow', 
+      'Cable', 'Captain America', 'Captain Marvel', 'Colossus', 
+      'Cyclops', 'Deadpool', 'Doctor Strange', 'Domino', 'Drax', 
+      'Gambit', 'Gamora', 'Ghost Spider', 'Groot', 'Hawkeye', 
+      'Hulk', 'Iceman', 'Iron Man', 'Ironheart', 'Jubilee', 
+      'Magik', 'Ms Marvel', 'Nebula', 'Nova', 'Phoenix', 
+      'Psylocke', 'Quicksilver', 'Rocket', 'Rogue', 'SP//dr', 
+      'Scarlet Witch', 'Shadowcat', 'She-Hulk', 'Spectrum', 'Spider-Ham', 
+      'Spider-Man (Peter Parker)', 'Spider-Man (Miles Morales)', 
+      'Star-Lord', 'Storm', 'Thor', 
+      'Valkyrie', 'Venom', 'Vision', 'War Machine', 'Wasp', 
+      'Wolverine', 'X-23'
+    ];
+
+    // List of heroes previously in the pool
+    const previousHeroes = [
+      'Angel', 'Ant-Man', 'Bishop', 'Black Widow', 'Cable',
+      'Captain America', 'Captain Marvel', 'Colossus', 'Cyclops', 'Deadpool',
+      'Domino', 'Ghost Spider', 'Hulk', 'Iceman', 'Iron Man',
+      'Magik', 'Psylocke', 'Rocket', 'SP//dr', 'Scarlet Witch', 
+      'Spider-Man (Peter Parker)', 'Storm', 'Wasp', 'X-23', 'Black Panther',
+      'Colossus', 'Hawkeye', 'Hulk', 'Ironheart', 'Jubilee', 'Ms Marvel',
+      'Nebula', 'Nova', 'Phoenix', 'Rogue', 'She-Hulk', 
+      'Spectrum', 'Spider-Ham', 'Valkyrie', 'Vision'
+    ];
+
+    // List of heroes previously in the pool
+    const firstRoundHeroes = [
+      'Spider-Ham', 'Ironheart', 'Nova', 'Vision',
+      'X-23', 'SP//dr', 'Captain Marvel', 'Domino', 'Psylocke',
+      'Ghost Spider', 'Magik', 'Cyclops', 'Iron Man'
+    ];       
+
+    // Draft-bot order based on forsooth's sims: https://www.marvelsimulator.com/stats
+    const draftOrder = [
+      'Doctor Strange', 'Storm', 'Captain America', 'Ironheart', 'Cyclops',
+      'Bishop', 'Vision', 'Spider-Man (Miles Morales)',  'Captain Marvel', 
+      'Psylocke', 'Spider-Ham',  'Wolverine', 'Scarlet Witch', 'Venom', 
+      'Gambit', 'SP//dr', 'Gamora', 'Black Widow', 'Iron Man', 'Black Panther',
+      'Angel', 'Colossus', 'Phoenix', 'Spider-Man (Peter Parker)', 'Spectrum',
+      'Ant-Man', 'X-23', 'Adam Warlock', 'Rogue', 'Iceman', 'Nebula',
+      'Rocket', 'Jubilee', 'Spider-Woman', 'Quicksilver', 
+      'War Machine', 'Cable', 'She-Hulk', 'Shadowcat', 'Hawkeye',
+      'Wasp', 'Domino', 'Magik', 'Ms Marvel', 'Ghost Spider', 'Nova',    
+      'Star-Lord', 'Thor', 'Groot', 'Deadpool', 'Drax', 
+      'Hulk', 'Valkyrie'
+    ];
+
+    // List of aspect choices
+    const aspectChoices = ['Aggression', 'Justice', 'Leadership', 'Protection'];
+
+    // List of teams
+    const teams = [
+      "Team A", "Team B", "Team C", "Team D", "Team E", 
+      "Team F", "Team G", "Team H", "Team I", "Team J",
+      "Team K", "Team L", "Team M", "Team N", "Team O"
+    ];
+
+    // Count the number of teams
+    const numberOfTeams = teams.length;
+
+    // Display the number of teams
+    document.getElementById('numberOfTeams').innerText = numberOfTeams;
+
+    // Display the list of possible heroes
+    const heroesListDiv = document.getElementById('heroesList');
+    heroesListDiv.innerHTML = '<strong>Possible Heroes:</strong> ' + marvelHeroes.join(', ');
+
+    function seededRandom(seed) {
+      let m = 2**32 - 1;
+      let a = 1664525;
+      let c = 1013904223;
+      let state = seed ? seed : Math.floor(Math.random() * m);
+
+      return function() {
+        state = (a * state + c) % m;
+        return state / m;
+      };
+    }
+
+    function shuffleArray(array, randomFunc) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(randomFunc() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    document.getElementById('goButton').addEventListener('click', function() {
+      const seedInput = document.getElementById('seedInput').value;
+      const seed = seedInput ? parseInt(seedInput) : null;
+      const randomFunc = seededRandom(seed);
+
+      // Calculate the number of heroes required
+      const numberOfHeroes = 2 * numberOfTeams + 2;
+
+      // Validate the number of heroes does not exceed the list size
+      if (numberOfHeroes > marvelHeroes.length) {
+        document.getElementById('result').innerText = 'Not enough heroes available for the given number of teams.';
+        return;
+      }
+
+      // Categorize heroes
+      const heroesByCategory = {
+        firstRound: new Set(firstRoundHeroes),
+        previous: new Set(previousHeroes),
+        available: new Set(marvelHeroes)
+      };
+
+      // Remove firstRoundHeroes from previous
+      heroesByCategory.previous.delete(...firstRoundHeroes); 
+
+      // Remove previous and firstRoundHeroes from available
+      heroesByCategory.available.delete(...previousHeroes, ...firstRoundHeroes); 
+
+      // Create weighted heroes array
+      const weightedHeroes = []
+        .concat(
+          [...heroesByCategory.firstRound].map(hero => ({ hero, weight: 1 })),
+          [...heroesByCategory.previous].map(hero => ({ hero, weight: 1 })),
+          [...heroesByCategory.available].map(hero => ({ hero, weight: 1 }))
+        );
+
+
+function weightedRandom(weightedArray) {
+  const totalWeight = weightedArray.reduce((acc, item) => acc + item.weight, 0);
+  const randomNum = randomFunc() * totalWeight; // Use seeded random function
+  let weightSum = 0;
+
+  for (let i = 0; i < weightedArray.length; i++) {
+    weightSum += weightedArray[i].weight;
+    if (randomNum < weightSum) {
+      return weightedArray[i].hero;
+    }
+  }
+}
+
+const selectedHeroes = [];
+
+while (selectedHeroes.length < numberOfHeroes) {
+  const selectedHero = weightedRandom(weightedHeroes);
+  if (!selectedHeroes.includes(selectedHero)) {
+    selectedHeroes.push(selectedHero);
+  }
+}
+
+      // Sort the selected heroes alphabetically
+      selectedHeroes.sort();
+
+      // Calculate the number of aspects required
+      const numberOfAspects = 2 * numberOfTeams;
+
+      const selectedAspects = [];
+
+      for (let i = 0; i < numberOfAspects; i++) {
+        // Randomly choose an aspect from aspectChoices
+        const randomIndex = Math.floor(Math.random() * aspectChoices.length);
+        const selectedAspect = aspectChoices[randomIndex];
+
+        // Add the selected aspect to the selectedAspects list
+        selectedAspects.push(selectedAspect);
+      }
+
+      // Push Pool into the list twice
+      selectedAspects.push('Pool');
+      selectedAspects.push('Pool');
+
+      // Define the desired order
+      const desiredOrder = [
+        'Leadership', 'Justice', 'Aggression', 'Protection', 'Pool'];
+
+      // Sort selectedAspects based on desiredOrder
+      selectedAspects.sort((a, b) => {
+        const indexA = desiredOrder.indexOf(a);
+        const indexB = desiredOrder.indexOf(b);
+        return indexA - indexB;
+      });
+
+      // Numbering repeated aspects
+      const numberedAspects = [];
+      let count = 1;
+      for (let i = 0; i < selectedAspects.length; i++) {
+        const aspect = selectedAspects[i];
+        if (i > 0 && selectedAspects[i - 1] === aspect) {
+          count++;
+          numberedAspects.push(`${aspect}${count.toString().padStart(2, '0')}`);
+        } else {
+          count = 1;
+          numberedAspects.push(`${aspect}01`);
+        }
+      }
+
+      // Updated draft bot
+      let draftBot = draftOrder.filter(hero => selectedHeroes.includes(hero));
+
+      // Shuffle the teams list
+      const shuffledTeams = [...teams];
+      shuffleArray(shuffledTeams, randomFunc);
+
+      // Display the result
+      document.getElementById('result').innerHTML = `<strong>Hero draft pool:</strong><br> ${selectedHeroes.join(', ')}<br><br><strong>Aspect draft pool:</strong><br>${numberedAspects.join(', ')}<br><br><strong>Draft-bot:</strong><br>${draftBot.join(', ')}<br><br><strong>Draft order:</strong><br>${shuffledTeams.join('<br>')}`;
+    });
+  </script>
+</body>
+</html>
